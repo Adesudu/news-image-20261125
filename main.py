@@ -1,13 +1,10 @@
-#!/usr/bin/env python3
-"""Place the finished front-page image where the harness expects it.
+"""Deliver the pre-rendered front page for news-image-20261125.
 
-The newspaper front page itself is drawn ahead of time by render.py and
-stored in this repository as entry.png. This entrypoint does no drawing:
-it only copies that ready-made image into the output directory the
-harness names, so the graded file lands at <output>/entry.png.
-
-Deterministic by construction: a plain byte copy, so two runs always
-produce identical output.
+The image itself lives in the repository as entry.png. This program's only
+job is to place an exact copy of it where the grader looks for the output:
+the directory named by MAKEFUN_OUTPUT_DIR (or "out" when that variable is
+empty or unset). The copy is byte for byte, so repeated runs always produce
+identical output.
 """
 
 import os
@@ -15,40 +12,34 @@ import shutil
 import sys
 from pathlib import Path
 
-SOURCE_NAME = "entry.png"
-DEFAULT_OUTPUT = "out"
+
+IMAGE_FILENAME = "entry.png"
 
 
-def pick_output_dir() -> str:
-    """Return the output directory from the environment, or the default."""
-    chosen = os.environ.get("MAKEFUN_OUTPUT_DIR", "").strip()
-    return chosen or DEFAULT_OUTPUT
+def output_directory() -> Path:
+    """Resolve the output directory from the environment."""
+    configured = os.environ.get("MAKEFUN_OUTPUT_DIR", "").strip()
+    return Path(configured if configured else "out")
 
 
-def repo_root() -> Path:
-    """Return the directory this script lives in (the repository root)."""
-    return Path(__file__).resolve().parent
+def place_image(image: Path, directory: Path) -> Path:
+    """Copy image into directory, making it first if needed."""
+    directory.mkdir(parents=True, exist_ok=True)
+    target = directory / image.name
+    shutil.copyfile(image, target)
+    return target
 
 
-def copy_front_page() -> Path:
-    """Copy entry.png into the output directory and return its path."""
-    source = repo_root() / SOURCE_NAME
-    if not source.is_file():
-        raise FileNotFoundError(f"expected image not found: {source}")
-
-    out_dir = Path(pick_output_dir())
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    destination = out_dir / SOURCE_NAME
-    shutil.copyfile(source, destination)
-    return destination
-
-
-def main() -> int:
-    placed = copy_front_page()
-    print(f"wrote {placed}")
+def run() -> int:
+    repo_root = Path(__file__).resolve().parent
+    image = repo_root / IMAGE_FILENAME
+    if not image.is_file():
+        print(f"error: {IMAGE_FILENAME} not found next to main.py", file=sys.stderr)
+        return 1
+    target = place_image(image, output_directory())
+    print(target)
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(run())
